@@ -1,3 +1,48 @@
+directories %w(.)
+
+additions_pipe = proc do |_, _, changes|
+  changes.each do |change|
+#    system("ruby car.rb") || throw(:task_has_failed) # IMPORTANT!
+
+     system("echo \"#{change} added\"") || throw(:task_has_failed) # IMPORTANT!
+#     system("cd ../Google_API_Test") || throw(:task_has_failed) # IMPORTANT!
+#     system("ruby ./api_test.rb \"#{changes}\"") || throw(:task_has_failed) # IMPORTANT!
+
+#    system("cd ../Google_API_Test") && system("ruby ./api_test.rb \"#{changes}\"") || throw(:task_has_failed) # IMPORTANT!
+    system("jruby ./api_test.rb \"#{change}\"") || throw(:task_has_failed) # IMPORTANT!
+#    system("jruby ../Google_API_Test/api_test.rb \"#{change}\"") || throw(:task_has_failed) # IMPORTANT!
+  end
+end
+
+modifications_pipe = proc do |_, _, changes|
+  changes.each do
+#    system("ls") || throw(:task_has_failed) # IMPORTANT!
+    system("echo \"#{changes} modified\"") || throw(:task_has_failed) # IMPORTANT!
+  end
+end
+
+removals_pipe = proc do |_, _, changes|
+  changes.each do
+#    system("tree") || throw(:task_has_failed) # IMPORTANT!
+    system("echo \"#{changes} removed\"") || throw(:task_has_failed) # IMPORTANT!
+  end
+end
+
+yield_options = {
+  run_on_modifications: modifications_pipe,
+  run_on_additions: additions_pipe,
+  run_on_removals: removals_pipe
+}
+
+guard :yield, yield_options do
+    watch /.*/
+#    watch /.*\//    ##Didn't work
+#    watch /s.*c/
+#    watch(%r{^spec/(.+)\.rb$})
+#    watch(%r{^spec/(.+)\.rb$})
+#    watch(%r{^spec/.+_spec\.rb$})
+end
+
 # directories %w(. config db models specs) \
 #.select{|d| Dir.exists?(d) ? d : UI.warning("Directory #{d} does not exist")}
 ## Note: if you are using the `directories` clause above and you are not
@@ -65,33 +110,3 @@
 #guard :yield, yield_options do
 #  watch /.*/
 #end
-
-additions_pipe = proc do |_, _, changes|
-  changes.each do
-#    system("ruby car.rb") || throw(:task_has_failed) # IMPORTANT!
-    system("echo \"#{changes} added\"") || throw(:task_has_failed) # IMPORTANT!
-  end
-end
-
-modifications_pipe = proc do |_, _, changes|
-  changes.each do
-#    system("ls") || throw(:task_has_failed) # IMPORTANT!
-    system("echo \"#{changes} modified\"") || throw(:task_has_failed) # IMPORTANT!
-  end
-end
-
-removals_pipe = proc do |_, _, changes|
-  changes.each do
-#    system("tree") || throw(:task_has_failed) # IMPORTANT!
-    system("echo \"#{changes} removed\"") || throw(:task_has_failed) # IMPORTANT!
-  end
-end
-
-yield_options = {
-  run_on_modifications: modifications_pipe,
-  run_on_additions: additions_pipe,
-  run_on_removals: removals_pipe
-}
-  guard :yield, yield_options do
-    watch /.*/
-  end

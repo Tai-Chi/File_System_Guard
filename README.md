@@ -4,7 +4,7 @@
 ## TODO
 1. direcotry change didn't check.
 
-
+2.
 
 ## USUAGE
 1. $ bundle install

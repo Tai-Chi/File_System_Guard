@@ -1,30 +1,114 @@
+require 'json'
+require './api.rb'
+
+#directories %w(/home/alan/Desktop)
 directories %w(.)
+folder = File.realpath(".")
+api = API.new
+
+## Issue: How can we detect renaming files or directories??
+def add_file(api, change)
+  # Get attributes and Upload
+  size = File.size(change) # integer
+  path = File.realpath(change)
+  id = api.call("upload", path)
+
+  # Set input information
+  uri = URI.parse("http://localhost:9292/create/file")
+  header = {'Content-Type': 'application/json'}
+  obj = { username: 'alan',
+          path: path,
+          portion: 1,
+          gfid: id,
+          size: size
+        }
+  # Create the HTTP objects
+  http = Net::HTTP.new(uri.host, uri.port)
+  request = Net::HTTP::Post.new(uri.request_uri, header)
+  request.body = obj.to_json
+  # Send the request to our server to update info
+  http.request(request)
+end
+
+def remove_file(api, folder, change)
+  # Get attributes
+  path = Pathname.new("#{folder}/#{change}").relative_path_from(Pathname.new("/")).to_path
+
+  # Set input information
+  uri = URI.parse("http://localhost:9292/delete/file")
+  header = {'Content-Type': 'application/json'}
+  obj = { username: 'alan',
+          path: path
+        }
+  # Create the HTTP objects
+  http = Net::HTTP.new(uri.host, uri.port)
+  request = Net::HTTP::Post.new(uri.request_uri, header)
+  request.body = obj.to_json
+  # Send the request to our server to update info
+  response = http.request(request)
+
+  # Delete files on Google Drive
+  if response.code == '200'
+    id_list = response.body.split(/[ ]/)
+    id_list.select! { |unit| !unit.empty? }
+    id_list.each do |id|
+      api.call("delete", id)
+    end
+  end
+end
 
 additions_pipe = proc do |_, _, changes|
   changes.each do |change|
-#    system("ruby car.rb") || throw(:task_has_failed) # IMPORTANT!
-
-     system("echo \"#{change} added\"") || throw(:task_has_failed) # IMPORTANT!
-#     system("cd ../Google_API_Test") || throw(:task_has_failed) # IMPORTANT!
-#     system("ruby ./api_test.rb \"#{changes}\"") || throw(:task_has_failed) # IMPORTANT!
-
-#    system("cd ../Google_API_Test") && system("ruby ./api_test.rb \"#{changes}\"") || throw(:task_has_failed) # IMPORTANT!
-    system("jruby ./api_test.rb \"#{change}\"") || throw(:task_has_failed) # IMPORTANT!
-#    system("jruby ../Google_API_Test/api_test.rb \"#{change}\"") || throw(:task_has_failed) # IMPORTANT!
+    if !File.symlink?(change) # ignore symbolic link
+      if !File.directory?(change)
+        # Debug Message
+        puts "FILE #{File.realpath(change)} added" || throw(:task_has_failed)
+        # Add file
+        add_file(api, change)
+      else
+        puts "DIR #{File.realpath(change)} added" || throw(:task_has_failed) # IMPORTANT!
+      end
+    else
+      puts "Is a symbolic link!!"
+    end
   end
 end
 
 modifications_pipe = proc do |_, _, changes|
-  changes.each do
-#    system("ls") || throw(:task_has_failed) # IMPORTANT!
-    system("echo \"#{changes} modified\"") || throw(:task_has_failed) # IMPORTANT!
+  changes.each do |change|
+    if !File.symlink?(change)
+      # system("ls") || throw(:task_has_failed) # IMPORTANT!
+      if !File.directory?(change)
+        # Debug Message
+        puts "FILE #{change} modified" || throw(:task_has_failed) # IMPORTANT!
+        # Should be deleted and added again!
+        remove_file(api, folder, change)
+        add_file(api, change)
+      end
+      # If a directory changes, it means files under it change.
+      # We have nothing to do here.
+    else
+      puts "Is a symbolic link!!"
+    end
   end
 end
 
 removals_pipe = proc do |_, _, changes|
-  changes.each do
-#    system("tree") || throw(:task_has_failed) # IMPORTANT!
-    system("echo \"#{changes} removed\"") || throw(:task_has_failed) # IMPORTANT!
+  changes.each do |change|
+    if !File.symlink?(change)
+      # system("tree") || throw(:task_has_failed) # IMPORTANT!
+      if !File.directory?(change)
+        # Debug Message
+        puts "FILE #{change} removed" || throw(:task_has_failed) # IMPORTANT!
+        # Delete File
+        remove_file(api, folder, change)
+      else
+        # I think the guard cannot check directory removal?
+        puts "DIR #{change} removed" || throw(:task_has_failed) # IMPORTANT!
+      end
+    else
+      puts "Is a symbolic link!!"
+    end
   end
 end
 

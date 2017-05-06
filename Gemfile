@@ -1,7 +1,7 @@
 source 'https://rubygems.org'
-ruby '2.4.0'
+#ruby '2.4.0'
 #ruby '1.9.3'
-
+ruby '2.3.1'
 
 gem 'json'
 gem 'puma'
@@ -28,5 +28,5 @@ end
 
 group :development, :test do
   gem 'rubocop'
-  gem 'sqlite3'
+  #gem 'sqlite3'
 end

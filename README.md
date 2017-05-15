@@ -11,8 +11,8 @@
 ## USUAGE
 0. $ rvm use jruby
 1. $ bundle install
-2. $ (rvmsudo) bundle exec guard
+2. $ (rvmsudo) bundle exec guard -i
 3. $ (Use other terminal) (Add/Modify/Rename any type of files, the former terminal will know it.)
 4. If the listened folders may contain lots of files, run the following in a terminal.  
 $ echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p  
-It means that we increase the number of watched files.
+It means that we increase the number of watched files to 524288.

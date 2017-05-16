@@ -83,6 +83,7 @@ modifications_pipe = proc do |_, _, changes|
         puts "FILE #{change} modified" || throw(:task_has_failed) # IMPORTANT!
         # Should be deleted and added again!
         remove_file(api, folder, change)
+  ##!!!! I think here should wait for a moment to let the process run!!!!
         add_file(api, change)
       end
       # If a directory changes, it means files under it change.

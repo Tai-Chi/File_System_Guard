@@ -3,15 +3,15 @@ require './api.rb'
 
 #directories %w(/home/alan/Desktop)
 directories %w(.)
-folder = File.realpath(".")
-api = API.new
+
+# IMPORTANT!! To set global variables in this Guardfile,
+# please refer to the "Setting" class in api.rb.
 
 ## Issue: How can we detect renaming files or directories??
-def add_file(api, change)
+def add_file(change)
   # Get attributes and Upload
   size = File.size(change) # integer
   path = File.realpath(change)
-  id = api.call("upload", path)
 
   # Set input information
   uri = URI.parse("http://localhost:9292/create/file")
@@ -19,20 +19,44 @@ def add_file(api, change)
   obj = { username: 'alan',
           path: path,
           portion: 1,
-          gfid: id,
           size: size
         }
   # Create the HTTP objects
   http = Net::HTTP.new(uri.host, uri.port)
   request = Net::HTTP::Post.new(uri.request_uri, header)
   request.body = obj.to_json
+
   # Send the request to our server to update info
+  response = http.request(request)
+  if response.code != '200'
+    puts 'Add file failed at Guardfile'
+    return -1
+  end
+
+  # Get file record id and allocated gaccount
+  file_id, gaccount = response.body.split(/[ ]/)
+
+  # Call Java API to upload files to Drive
+  gfile_id = Setting.api.call("upload", gaccount, path)
+  space = Setting.api.call("getSpace", gaccount)
+
+  # Update file metadata to our server
+  uri = URI.parse("http://localhost:9292/update/metadata")
+  header = {'Content-Type': 'application/json'}
+  obj = { username: 'alan',
+          file_id: file_id, #.to_s, # Body must only yield String values?
+          gfile_id: gfile_id,
+          drive_space: space
+        }
+  http = Net::HTTP.new(uri.host, uri.port)
+  request = Net::HTTP::Post.new(uri.request_uri, header)
+  request.body = obj.to_json
   http.request(request)
 end
 
-def remove_file(api, folder, change)
+def remove_file(change)
   # Get attributes
-  path = Pathname.new("#{folder}/#{change}").relative_path_from(Pathname.new("/")).to_path
+  path = Pathname.new("#{Setting.folder}/#{change}").relative_path_from(Pathname.new("/")).to_path
 
   # Set input information
   uri = URI.parse("http://localhost:9292/delete/file")
@@ -49,10 +73,10 @@ def remove_file(api, folder, change)
 
   # Delete files on Google Drive
   if response.code == '200'
-    id_list = response.body.split(/[ ]/)
-    id_list.select! { |unit| !unit.empty? }
-    id_list.each do |id|
-      api.call("delete", id)
+    gaccount_gfid_list = response.body.split(/[ ]/)
+    gaccount_gfid_list.select! { |unit| !unit.empty? }
+    gaccount_gfid_list.each_slice(2) do |email, id|
+      Setting.api.call("delete", email, id)
     end
   end
 end
@@ -64,7 +88,7 @@ additions_pipe = proc do |_, _, changes|
         # Debug Message
         puts "FILE #{File.realpath(change)} added" || throw(:task_has_failed)
         # Add file
-        add_file(api, change)
+        add_file(change)
       else
         puts "DIR #{File.realpath(change)} added" || throw(:task_has_failed) # IMPORTANT!
       end
@@ -82,9 +106,9 @@ modifications_pipe = proc do |_, _, changes|
         # Debug Message
         puts "FILE #{change} modified" || throw(:task_has_failed) # IMPORTANT!
         # Should be deleted and added again!
-        remove_file(api, folder, change)
+        remove_file(change)
   ##!!!! I think here should wait for a moment to let the process run!!!!
-        add_file(api, change)
+        add_file(change)
       end
       # If a directory changes, it means files under it change.
       # We have nothing to do here.
@@ -102,7 +126,7 @@ removals_pipe = proc do |_, _, changes|
         # Debug Message
         puts "FILE #{change} removed" || throw(:task_has_failed) # IMPORTANT!
         # Delete File
-        remove_file(api, folder, change)
+        remove_file(change)
       else
         # I think the guard cannot check directory removal?
         puts "DIR #{change} removed" || throw(:task_has_failed) # IMPORTANT!

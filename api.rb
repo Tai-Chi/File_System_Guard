@@ -13,7 +13,7 @@ class API
     if argv[0]=='upload'
       return GoogleDriveAPI.upload(argv[1], argv[2])
     elsif argv[0]=='download'
-      return GoogleDriveAPI.download(argv[1], argv[2], "#{Dir.pwd}/#{argv[2]}")
+      return GoogleDriveAPI.download(argv[1], argv[2], argv[3])
     elsif argv[0]=='delete'
       return GoogleDriveAPI.delete(argv[1], argv[2])
     elsif argv[0]=='getSpace'
